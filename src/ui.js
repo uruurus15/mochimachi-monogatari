@@ -165,7 +165,7 @@ function renderShop(st, T, M) {
     const d = BUILDINGS[k];
     const inS = Object.entries(d.recipe.in).map(([i, v]) => `${v}${ITEMS[i].emoji}`).join('+') || '—', outS = Object.entries(d.recipe.out).map(([i, v]) => `${v}${ITEMS[i].emoji}`).join('+');
     return `<div class="bcard" data-k="${k}"><div class="bhead"><span class="badge">${d.emoji}</span><div class="btitle"><b>${d.name}</b><small>${inS} → ${outS} · ${d.recipe.time}秒</small></div><div class="bcount" data-f="cnt"></div></div>
-      <div class="bstat"><span data-f="rate"></span><span class="pill" data-f="ms"></span></div>${bar()}
+      <div class="bstat"><span data-f="rate"></span><span class="pill" data-f="ms"></span></div>${bar()}<small class="bgain" data-f="gain"></small>
       <div class="bbtns"><button class="btn" data-act="build" data-id="${k}"></button><button class="btn alt" data-act="up" data-id="${k}"></button>${anyAuto ? `<button class="btn ghost" data-act="noauto" data-id="${k}" title="奉行におまかせ(自動建築・自動強化の対象にする/しない)">📜</button>` : ''}</div></div>`;
   }, (card, k) => {
     if (k[0] === '?') { setText(q(card, '[data-f=req]'), reqText(k.slice(1), T)); return; }
@@ -179,7 +179,11 @@ function renderShop(st, T, M) {
     const bb = q(card, '[data-act=build]'), ub = q(card, '[data-act=up]'), ab = q(card, '[data-act=noauto]');
     setText(bb, `建てる${p.cnt > 1 ? ' ×' + p.cnt : ''}  ${money(T, p.total)}${p.mat ? ' ' + ITEMS.timber.emoji + fmt(p.mat) : ''}`); setDisabled(bb, T.items.coin < p.total || T.items.timber < p.mat);
     toggle(bb, 'nomat', T.items.coin >= p.total && T.items.timber < p.mat);
-    setText(ub, `強化  ${money(T, uc)}`); setDisabled(ub, !b.count || T.items.coin < uc);
+    // 強化・建設の効果: 押すとどれだけ増えるかを、割合と毎秒の量で見せる
+    const rt = b.count ? ratePerSec(k, T, M) * r.out[out0] : 0, lv = b.level, upRatio = (1 + UPGRADE_EFFECT * (lv + 1)) / (1 + UPGRADE_EFFECT * lv) - 1, bdRatio = b.count ? ((b.count + 1) * milestoneMult(b.count + 1)) / (b.count * milestoneMult(b.count)) - 1 : 0;
+    setText(ub, `強化  ${money(T, uc)}${b.count ? `  +${(upRatio * 100).toFixed(upRatio < 0.1 ? 1 : 0)}%` : ''}`); setDisabled(ub, !b.count || T.items.coin < uc);
+    ub.title = b.count ? `強化 Lv${lv} → Lv${lv + 1}: この建物の速度 ×${(1 + UPGRADE_EFFECT * lv).toFixed(2)} → ×${(1 + UPGRADE_EFFECT * (lv + 1)).toFixed(2)}(+${(upRatio * 100).toFixed(1)}%)。${ITEMS[out0].name}が毎秒 +${fmtRate(rt * upRatio)} 増えます。強化は1レベルごとに基本の+${UPGRADE_EFFECT * 100}%ずつ足され、レベルが高いほど伸びは小さくなります。` : '建てると強化できます';
+    setText(q(card, '[data-f=gain]'), b.count ? `強化 +${(upRatio * 100).toFixed(1)}%(毎秒 +${fmtRate(rt * upRatio)})  ·  あと1棟 +${(bdRatio * 100).toFixed(1)}%(毎秒 +${fmtRate(rt * bdRatio)})` : '');
     if (ab) toggle(ab, 'off', b.noAuto);
   });
   document.querySelectorAll('#qty button').forEach(b => { const id = b.dataset.id, ok = builder || id === '1'; toggle(b, 'on', String(builder ? UI.qty : 1) === id); setDisabled(b, !ok); b.title = ok ? '' : '建築奉行を雇うとまとめ買いができます'; });
@@ -211,12 +215,12 @@ function renderOffice(st, T, M) {
   keyed($('#offlist'), list.map(o => o.id), id => {
     const o = OFFICIAL_BY_ID[id], hired = !!T.off[id], a = AUTO_OF[id];
     return `<div class="card off ${hired ? 'hired' : ''}" data-k="${id}"><div class="offtop"><span class="offface">${o.emoji}</span><div class="offtxt"><b>${o.name}</b><small>${o.desc}</small></div>
-      ${hired ? '<span class="stamp">採用済</span>' : `<button class="btn" data-act="hire" data-id="${id}"></button>`}</div>
+      ${hired ? '<span class="stamp">採用済</span>' : `<button class="btn" data-act="hire" data-id="${id}"></button>`}</div>${hired ? '' : '<small class="hint why" data-f="why"></small>'}
       ${hired && a ? `<div class="autorow"><label class="sw"><input type="checkbox" data-act="autotog" data-id="${a[0]}"><i></i><span>${a[1]}</span></label><label class="rsv">予備金 <input type="range" min="0" max="90" step="5" data-act="reserve" data-id="${a[0]}"><b data-f="rv"></b></label></div><small class="hint">${a[2]}</small>` : ''}
       ${hired && id === 'courier' ? '<small class="hint">「輸送」タブで輸送指示を設定できます。</small>' : ''}${hired && id === 'merchant' ? '<small class="hint">「在庫」タブで手元に残す数を設定できます。</small>' : ''}</div>`;
   }, (el, id) => {
     const a = AUTO_OF[id];
-    if (!T.off[id]) { const b = q(el, '[data-act=hire]'); setText(b, `雇う ${money(T, officialCost(T, id))}`); setDisabled(b, T.items.coin < officialCost(T, id)); return; }
+    if (!T.off[id]) { const b = q(el, '[data-act=hire]'), why = hireBlock(T, id); setText(b, why ? '🔒 まだ雇えません' : `雇う ${money(T, officialCost(T, id))}`); setDisabled(b, !!why || T.items.coin < officialCost(T, id)); b.title = why; toggle(el, 'blocked', !!why); setText(q(el, '[data-f=why]'), why); return; }
     if (!a) return;
     const A = T.auto[a[0]], cb = q(el, '[data-act=autotog]'), rg = q(el, '[data-act=reserve]');
     if (cb.checked !== A.on) cb.checked = A.on;
@@ -485,14 +489,14 @@ function renderShip(st, T, M) {
 
 // ---- 全体の描画 ----
 const prevMs = {};
-function detectMilestones(st) {          // 自動購入などで節目に届いたら、小さく祝う(最初の描画では祝わない)
-  const first = !Object.keys(prevMs).length;
+function detectMilestones(st) {          // 自動購入などで節目に届いたら、小さく祝う(最初の描画では祝わない)。同時に届いた分は1つのバナーにまとめる
+  const first = !Object.keys(prevMs).length; let hit = false;
   for (const id of TOWN_IDS) {
     const T = st.t[id]; if (!T.open) continue;
     for (const b of BUILDINGS_OF[id]) {
       const m = milestoneMult(T.b[b].count), key = id + b;
       if (!first && prevMs[key] != null && m > prevMs[key] && id === UI.town) {
-        FX.showBanner('節目ボーナス!', `${BUILDINGS[b].name} ${T.b[b].count}棟 → 速度 ×${m}`, TOWNS[id].theme.accent); FX.sfx('mile');
+        if (!hit) { hit = true; FX.showBanner('節目ボーナス!', `${BUILDINGS[b].name} ${T.b[b].count}棟 → 速度 ×${m}`, TOWNS[id].theme.accent); FX.sfx('mile'); } else FX.showBanner('節目ボーナス!', '', TOWNS[id].theme.accent);
         const card = q(document, `#buildings [data-k="${b}"]`); if (card) { flash(card); FX.burstAt(card, { n: 30, colors: [TOWNS[id].theme.accent, TOWNS[id].theme.accent2, '#ffffff'] }); }
       }
       prevMs[key] = m;

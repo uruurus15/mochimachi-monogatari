@@ -126,7 +126,14 @@ function grantCoin(T, n) { T.items.coin += n; T.stats.bonusCoins = (T.stats.bonu
 // ---- 役人(雇うと機能が開放される) ----
 const hasOff = (T, id) => !!T.off[id];
 const officialCost = (T, id) => Math.max(1, Math.ceil(OFFICIAL_BY_ID[id].cost * TOWNS[T.id].unit));
-const canHire = (T, id) => !T.off[id] && !(OFFICIAL_BY_ID[id].homeOnly && T.id !== ROOT_TOWN);
+// まだ意味のない役人は雇えない(飛脚頭は街が2つ開いてから、検地役は道を切り拓ける街が見えてから)
+function hireBlock(T, id) {
+  const G = T.G;
+  if (id === 'courier' && openTowns(G).length < 2) return '2つ目の街が開くと雇えます';
+  if (id === 'surveyor') { if (!CHILDREN_OF[T.id].length) return 'この街から先の街はありません'; if (!CHILDREN_OF[T.id].some(c => townVisible(G, c))) return '道を切り拓ける街が見えると雇えます'; }
+  return '';
+}
+const canHire = (T, id) => !T.off[id] && !(OFFICIAL_BY_ID[id].homeOnly && T.id !== ROOT_TOWN) && !hireBlock(T, id);
 function hireOfficial(T, id) {
   if (!canHire(T, id)) return false;
   const c = officialCost(T, id); if (T.items.coin < c) return false;

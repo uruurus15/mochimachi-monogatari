@@ -42,10 +42,13 @@ const FX = (function () {
   const banner = () => document.getElementById('banner');
   function showBanner(title, sub, color) {
     const el = banner(); if (!el) return;
-    const d = document.createElement('div'); d.className = 'bn'; if (color) d.style.setProperty('--bc', color);
+    // 同じ見出しのバナーが出ている間に重ねて来たら、新しく出さずに「ほか N 件」としてまとめる(同じ表示が何個も並ばないように)
+    const same = [...el.children].find(c => c._title === title && !c.classList.contains('out'));
+    if (same) { same._n++; same.lastChild.textContent = `${sub || ''}(ほか ${same._n - 1} 件)`; clearTimeout(same._t1); clearTimeout(same._t2); same._t1 = setTimeout(() => same.classList.add('out'), 2600); same._t2 = setTimeout(() => same.remove(), 3200); return; }
+    const d = document.createElement('div'); d.className = 'bn'; if (color) d.style.setProperty('--bc', color); d._title = title; d._n = 1;
     d.innerHTML = `<b></b><small></small>`; d.firstChild.textContent = title; d.lastChild.textContent = sub || '';
     el.appendChild(d); while (el.children.length > 3) el.firstChild.remove();
-    setTimeout(() => d.classList.add('out'), 2600); setTimeout(() => d.remove(), 3200);
+    d._t1 = setTimeout(() => d.classList.add('out'), 2600); d._t2 = setTimeout(() => d.remove(), 3200);
   }
 
   // ---- 効果音 ----

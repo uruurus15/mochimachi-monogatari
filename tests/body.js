@@ -334,5 +334,16 @@ check(r2[2].earned > rt[0].earned * 1.5, `2周目(8h)が1周目(8h)の1.5倍に�
   check(!finite(F) && !finite(K), '建材・売却上限の状態が不正');
   console.log('\n--- 建材・売却の速さ・需給の集計 --- OK');
 }
+// 17) 役人の雇える条件: 飛脚頭は街が2つ開くまで、検地役は道を切り拓ける街が見えるまで雇えない
+{
+  const G = newState(), H = G.t.home; H.items.coin = 1e12;
+  check(!canHire(H, 'courier') && !hireOfficial(H, 'courier') && !H.off.courier, '街が1つなのに飛脚頭を雇えた');
+  check(!canHire(H, 'surveyor'), '道を切り拓ける街が見えないのに検地役を雇えた');
+  check(canHire(H, 'builder') && canHire(H, 'merchant'), '建築奉行・商人頭は最初から雇えるはず');
+  H.stats.coinsEarned = Math.min(...CHILDREN_OF.home.map(c => TOWNS[c].needEarned)); check(canHire(H, 'surveyor'), '街が見えたのに検地役を雇えない');
+  G.t.shiomi.open = true; check(canHire(H, 'courier') && hireOfficial(H, 'courier'), '街が2つになっても飛脚頭を雇えない');
+  check(!canHire(G.t.daito, 'surveyor') && hireBlock(G.t.daito, 'surveyor'), '先の街が無い大都で検地役を雇える');
+  console.log('\n--- 役人の雇える条件 --- OK');
+}
 console.log(fail.length ? '\n失敗:\n - ' + fail.join('\n - ') : '\nすべてのチェックに合格');
 if (fail.length) process.exitCode = 1;
