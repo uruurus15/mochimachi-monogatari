@@ -243,3 +243,7 @@ footer button{background:color-mix(in srgb,var(--card) 80%,transparent);color:va
 
 .bgain{display:block;color:var(--sub);font-size:11.5px;margin:2px 0 5px;min-height:15px}
 .card.off.blocked{opacity:.6}.hint.why{display:block;color:#ffb74d;margin:2px 0 0 4px}
+
+.ttbox{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:99px;background:#ffd54f18;border:1px solid #ffd54f66;font-size:12px}
+.ttbox .tt b{color:#ffd54f}.ttbox button{border:0;border-radius:99px;padding:2px 9px;font-weight:800;cursor:pointer;background:#ffffff22;color:inherit}
+.ttbox button.on{background:#ffd54f;color:#2a1a00;box-shadow:0 0 10px #ffd54f}.ttbox button:disabled{opacity:.35;cursor:not-allowed}

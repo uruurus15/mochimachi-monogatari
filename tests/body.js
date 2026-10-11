@@ -345,5 +345,22 @@ check(r2[2].earned > rt[0].earned * 1.5, `2周目(8h)が1周目(8h)の1.5倍に�
   check(!canHire(G.t.daito, 'surveyor') && hireBlock(G.t.daito, 'surveyor'), '先の街が無い大都で検地役を雇える');
   console.log('\n--- 役人の雇える条件 --- OK');
 }
+// 18) タイムトークン(オフラインで貯めた時間)と、手元に残す数
+{
+  const G = newState(); G.t.home.b.paddy.count = 5; G.ev.next = 1e9; const cap = mods(G.t.home).off;
+  G.savedAt = Date.now() - 3600 * 1000; applyOffline(G);
+  check(Math.abs(G.meta.bank - 3600 * TIMETOKEN.share) < 5, `上限以内の離席で貯まる量が違う: ${G.meta.bank}`);
+  const G2 = newState(); G2.t.home.b.paddy.count = 5; G2.ev.next = 1e9; G2.savedAt = Date.now() - (cap + 4 * 3600) * 1000; applyOffline(G2);
+  check(Math.abs(G2.meta.bank - (4 * 3600 + cap * TIMETOKEN.share)) < 5, `上限を超えた分が貯まらない: ${G2.meta.bank}`);
+  const G3 = newState(); G3.ev.next = 1e9; G3.savedAt = Date.now() - 400 * 3600 * 1000; applyOffline(G3); check(G3.meta.bank <= TIMETOKEN.max && G3.meta.bank > TIMETOKEN.max - 10, '貯めた時間の上限が効かない');
+  const G4 = newState(); G4.ev.next = 1e9; G4.savedAt = Date.now() - 3 * 1000; applyOffline(G4); check(G4.meta.bank === 0, '数秒の離席で貯まった');
+  const H = normalize(JSON.parse(JSON.stringify(G2))); check(Math.abs(H.meta.bank - G2.meta.bank) < 1e-6, '貯めた時間が保存→読み込みで変わる');
+  check(checkReveal(G2, true) === undefined && G2.meta.seen.timetoken, 'タイムトークンが開放されない');
+  // 手元に残す数: 自動販売のオン・オフに関わらず設定でき、手動で売るときにも効く
+  const T = newState().t.home; T.items.rice = 100; T.autosell.rice = null; T.keep.rice = 30; check(keepOf(T, 'rice') === 30, '自動販売オフでも残す数が設定できない');
+  const got = sellItem(T, 'rice', keepOf(T, 'rice')); check(T.items.rice === 30 && got > 0, '手動で売るときに残す数が効かない');
+  const N = normalize(JSON.parse(JSON.stringify(Object.assign(newState(), {})))); N.t.home.keep.rice = 7; check(normalize(JSON.parse(JSON.stringify(N))).t.home.keep.rice === 7, '残す数が保存されない');
+  console.log('\n--- タイムトークンと手元に残す数 --- OK');
+}
 console.log(fail.length ? '\n失敗:\n - ' + fail.join('\n - ') : '\nすべてのチェックに合格');
 if (fail.length) process.exitCode = 1;

@@ -30,7 +30,7 @@ const FRESH = {};   // 新しく開放されたタブ(点滅させる。保存�
 const HIST = {};   // 需給の履歴(画面用・保存しない): HIST[街][品目] = { stock:[], sup:[], dem:[], sold:[] }
 const HIST_N = 100, HIST_DT = 6;   // 100点 × ゲーム内6秒ごと
 let histT = -1, histPrev = {};
-const UI = { town: ROOT_TOWN, tab: 'items', qty: 1, view: 'town', muted: false, dn: true, lite: false };
+const UI = { town: ROOT_TOWN, tab: 'items', qty: 1, view: 'town', muted: false, dn: true, lite: false, boost: 1 };
 try { const t = localStorage.getItem('mochimachi.ui'); if (t) Object.assign(UI, JSON.parse(t)); } catch (e) { /* ignore */ }
 const saveUI = () => { try { localStorage.setItem('mochimachi.ui', JSON.stringify({ town: UI.town, tab: UI.tab, qty: UI.qty, view: UI.view, muted: UI.muted, dn: UI.dn, lite: UI.lite })); } catch (e) { /* ignore */ } };
 FX.setMuted(!!UI.muted); if (typeof PERF !== 'undefined') PERF.setLite(UI.lite);
@@ -134,6 +134,7 @@ function onNote(m) {
   else if (c === '🎆') { FX.showBanner('万国もち博覧会 開幕!', body, '#ffd54f'); FX.sfx('fest'); FX.fireworks(['#ffd54f', '#ff8fb8', '#4fc3f7', '#a5d6a7']); setTimeout(() => FX.fireworks(['#ffffff', '#ffd54f']), 900); setTimeout(() => showEnding(state, GOAL), 1800); }
   else if (c === '🌸') { FX.showBanner('天下一もち大祭 大成功!', body, '#ff8fb8'); FX.sfx('fest'); FX.fireworks(['#ff8fb8', '#ffd54f', '#ffffff']); setTimeout(() => FX.fireworks(['#ffd54f', '#4fc3f7', '#a5d6a7']), 800); setTimeout(() => FX.fireworks(['#ffffff', '#ff8fb8']), 1700); setTimeout(() => showEnding(state, GOAL2), 2600); }
   else if (c === '🔭') { FX.showBanner('新しい発見!', body, '#9be7ff'); FX.sfx('road'); FX.fireworks(['#9be7ff', '#ffffff']); const r = REVEALS.find(x => x.msg === m); const tab = r && ({ towns: 'ship', goal: 'goal', fuku: 'fest', homare: 'fest', goal2: 'goal', tribute: 'ship', analysis: 'analysis' })[r.id]; if (tab) FRESH[tab] = true; }
+  else if (c === '⏳') { FX.sfx('hire'); }
   else if (c === '🎉') FX.sfx('mile');
 }
 
@@ -203,7 +204,7 @@ function renderItems(st, T, M) {
       setText(q(el, '[data-act=sell]'), `売る ${money(T, sellPrice(k, T, M))}${dem ? ` ×${dem}` : ''}`);
       toggle(q(el, '[data-act=sell]'), 'hot', !!dem && dem >= 2);
       const cb = q(el, '[data-act=auto]'); if (cb.checked !== on) cb.checked = on;
-      const kp = q(el, '.num'); if (kp) { kp.disabled = !on; if (document.activeElement !== kp) { const v = on ? String(keep) : ''; if (kp.value !== v) kp.value = v; } if (on && eff > keep) kp.title = `自動輸送のため、実際には ${fmt(eff)} まで手元に残します`; }
+      const kp = q(el, '.num'); if (kp) { if (document.activeElement !== kp) { const v = String(keepOf(T, k)); if (kp.value !== v) kp.value = v; } setTitle(kp, on && eff > keep ? `自動輸送のため、実際には ${fmt(eff)} まで手元に残します` : '手元に残す数(「売る」でも自動販売でも、この数は売りません)'); }
     });
 }
 
@@ -504,6 +505,13 @@ function detectMilestones(st) {          // 自動購入などで節目に届い
     }
   }
 }
+// タイムトークン(貯めた時間)の表示と、加速ボタン
+function renderTokens(st) {
+  const bank = st.meta.bank, show = !!st.meta.seen.timetoken || bank >= 1;
+  toggle($('#ttbox'), 'vhide', !show); if (!show) return;
+  setText($('#ttval'), `${Math.floor(bank / TIMETOKEN.unit)}個(${fmtTime(bank)})`);
+  document.querySelectorAll('#ttbox [data-act=boost]').forEach(b => { toggle(b, 'on', UI.boost === +b.dataset.id); setDisabled(b, bank <= 0 && UI.boost !== +b.dataset.id); });
+}
 function renderTabs(st, T) {
   const vt = visTabs();
   keyed($('#tabs'), vt.map(t => t.id), id => { const t = TABS.find(x => x.id === id); return `<button class="tabbtn" data-k="${id}" data-act="tab" data-id="${id}"><span class="ti">${t.icon}</span><span class="tl">${t.name}</span><i class="dot"></i></button>`; },
@@ -517,7 +525,7 @@ function render() {
   const st = state, T = curT(), M = mods(T);
   renderHUD(st, T, M); renderTowns(st); renderShop(st, T, M); renderTabs(st, T); detectMilestones(st);
   const t = $('#town'), w = $('#world'); toggle(t, 'hide', UI.view !== 'town'); toggle(w, 'hide', UI.view !== 'world');
-  document.querySelectorAll('#viewbar button[data-id]').forEach(b => toggle(b, 'on', b.dataset.id === UI.view)); toggle($('#dnbtn'), 'on', UI.dn !== false); toggle($('#litebtn'), 'on', !!UI.lite); toggle(document.querySelector('#viewbar [data-id=world]'), 'vhide', !st.meta.seen.towns);
+  document.querySelectorAll('#viewbar button[data-id]').forEach(b => toggle(b, 'on', b.dataset.id === UI.view)); toggle($('#dnbtn'), 'on', UI.dn !== false); renderTokens(st); toggle($('#litebtn'), 'on', !!UI.lite); toggle(document.querySelector('#viewbar [data-id=world]'), 'vhide', !st.meta.seen.towns);
   setText($('#viewhint'), UI.view === 'world' ? `発見した街 ${TOWN_IDS.filter(id => st.t[id].open).length}/${TOWN_IDS.length} · 街をクリックで切り替え` : '');
   document.querySelectorAll('[data-panel]').forEach(p => toggle(p, 'show', p.dataset.panel === UI.tab));
   switch (UI.tab) {
@@ -545,9 +553,9 @@ document.addEventListener('click', e => {
   else if (act === 'gup') { if (buyGlobal(T, id)) FX.sfx('up'); }
   else if (act === 'res') { if (buyResearch(T, id)) { FX.sfx('up'); FX.burstAt(t, { n: 14 }); } }
   else if (act === 'perk') { if (buyPerk(st, id)) FX.sfx('up'); }
-  else if (act === 'sell') { if (sellItem(T, id)) FX.sfx('sell'); }
+  else if (act === 'sell') { if (sellItem(T, id, keepOf(T, id))) FX.sfx('sell'); else FX.sfx('no'); }
   else if (act === 'sellall') { for (const k in ITEMS) sellItem(T, k); FX.sfx('sell'); }
-  else if (act === 'auto') { T.autosell[id] = t.checked ? (defaultAutosell(T.id)[id] || 10) : null; return; }
+  else if (act === 'auto') { if (t.checked) T.autosell[id] = T.keep[id] != null ? T.keep[id] : (defaultAutosell(T.id)[id] || 10); else { if (T.autosell[id] != null) T.keep[id] = T.autosell[id]; T.autosell[id] = null; } return; }
   else if (act === 'keep' || act === 'ordkeep' || act === 'reserve') return;
   else if (act === 'hire') { hireOfficial(T, id); }
   else if (act === 'autotog') { T.auto[id].on = t.checked; return; }
@@ -559,6 +567,7 @@ document.addEventListener('click', e => {
   else if (act === 'goal') { if (buildStage(st, id)) { FX.burstAt(t, { n: 30, colors: ['#ffd54f', '#ffffff'] }); save(st); } else FX.sfx('no'); }
   else if (act === 'endclose') { $('#ending').classList.add('hide'); }
   else if (act === 'lite') { UI.lite = !UI.lite; PERF.setLite(UI.lite); saveUI(); }
+  else if (act === 'boost') { const v = +id; UI.boost = UI.boost === v ? 1 : (state.meta.bank > 0 ? v : 1); FX.sfx(UI.boost > 1 ? 'road' : 'buy'); }
   else if (act === 'daynight') { UI.dn = UI.dn === false; saveUI(); }
   else if (act === 'mute') { UI.muted = !UI.muted; FX.setMuted(UI.muted); saveUI(); }
   else if (act === 'road') { if (buyRoad(st, id)) { FX.sfx('road'); FX.burstAt(t, { n: 24, colors: [TOWNS[id].theme.accent, '#ffffff'] }); } else FX.sfx('no'); }
@@ -595,7 +604,7 @@ document.addEventListener('click', e => {
 document.addEventListener('change', e => {   // 数値入力・スライダー
   const t = e.target.closest('[data-act]'); if (!t) return;
   const act = t.dataset.act, T = curT(), v = Math.max(0, Math.floor(+t.value || 0));
-  if (act === 'keep') { if (T.autosell[t.dataset.id] != null) T.autosell[t.dataset.id] = v; }
+  if (act === 'keep') { T.keep[t.dataset.id] = v; if (T.autosell[t.dataset.id] != null) T.autosell[t.dataset.id] = v; }
   else if (act === 'ordkeep') { const { c, dir, it } = parseOid(t.dataset.id), o = state.t[c].ship[dir][it]; if (o) o.keep = v; }
   else if (act === 'reserve') { T.auto[t.dataset.id].reserve = Math.min(0.9, v / 100); }
   else return;
@@ -619,7 +628,10 @@ let timeScale = 1; // デバッグ版(debug.js)が書き換える。通常版は
 let last = performance.now(), acc = 0, sinceSave = 0, sinceRender = 0;
 function frame(now) {
   const dt = Math.min((now - last) / 1000, 1); last = now;
-  acc += dt * timeScale; sinceSave += dt; sinceRender += dt;
+  // タイムトークン: 加速中は、増えた時間ぶんだけ貯めた時間を使う(なくなったら通常の速さに戻る)
+  let boost = 1;
+  if (UI.boost > 1) { if (state.meta.bank > 0) { boost = UI.boost; state.meta.bank = Math.max(0, state.meta.bank - dt * (boost - 1)); } if (state.meta.bank <= 0) { UI.boost = 1; boost = 1; pushToast('⏳ 貯めた時間を使い切りました。ふつうの速さに戻ります', 3500); } }
+  acc += dt * timeScale * boost; sinceSave += dt; sinceRender += dt;
   // 1フレームの計算量に上限を設ける。倍率が高いときは刻みを粗くして(生産はバッチ計算なので結果は同じ)、画面が固まらないようにする
   const steps = Math.floor(acc / SIM.step);
   if (steps > 0) {

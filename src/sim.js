@@ -11,7 +11,7 @@ const notify = msg => NOTES.push(msg);
 const EVENT_BY_ID = Object.fromEntries(EVENTS.map(e => [e.id, e]));
 
 // 転生しても残る情報
-function newMeta() { return { fuku: 0, fukuTotal: 0, perks: {}, resets: 0, ach: {}, eventsSeen: 0, playSecTotal: 0, goal: { clears: 0, best: 0, total: 0 }, goal2: { clears: 0, best: 0, total: 0 }, homare: 0, reset2: 0, seen: {}, mon: {} }; }
+function newMeta() { return { fuku: 0, fukuTotal: 0, perks: {}, resets: 0, ach: {}, eventsSeen: 0, playSecTotal: 0, goal: { clears: 0, best: 0, total: 0 }, goal2: { clears: 0, best: 0, total: 0 }, homare: 0, reset2: 0, seen: {}, mon: {}, bank: 0 }; }
 
 // 自動販売の既定: その街の施設が材料に使う品は少し手元に残し、使わない品は売り切る(輸送で受け取った品を市場の高値で売れる)
 function defaultAutosell(tid) {
@@ -24,7 +24,7 @@ const attach = (T, G) => { Object.defineProperty(T, 'G', { value: G, enumerable:
 function newTown(id, G) {
   const T = { id, open: id === ROOT_TOWN, road: 0, items: {}, b: {}, gup: {}, res: {}, quests: {}, autosell: defaultAutosell(id), off: {},
     auto: { build: { on: false, reserve: AUTO_DEFAULT_RESERVE }, up: { on: false, reserve: AUTO_DEFAULT_RESERVE }, res: { on: false, reserve: AUTO_DEFAULT_RESERVE }, gup: { on: false, reserve: AUTO_DEFAULT_RESERVE }, road: { on: false, reserve: 0.3 } },
-    ship: { down: {}, up: {} }, tflow: {}, stats: { produced: {}, received: {}, coinsEarned: 0, bonusCoins: 0 } };
+    keep: {}, ship: { down: {}, up: {} }, tflow: {}, stats: { produced: {}, received: {}, coinsEarned: 0, bonusCoins: 0 } };
   for (const k in ITEMS) { T.items[k] = 0; T.stats.produced[k] = 0; T.stats.received[k] = 0; }
   for (const k of BUILDINGS_OF[id]) T.b[k] = { count: 0, progress: 0, level: 0, stalled: false, why: '', noAuto: false };
   for (const k in GLOBAL_UPGRADES) T.gup[k] = 0;
@@ -239,6 +239,7 @@ function buyPerk(G, id) {
   if (perkMaxed(id, G) || G.meta.fuku < c) return false;
   G.meta.fuku -= c; G.meta.perks[id] = (G.meta.perks[id] | 0) + 1; return true;
 }
+const keepOf = (T, it) => T.keep[it] != null ? T.keep[it] : (T.autosell[it] != null ? T.autosell[it] : 0);   // 「手元に残す数」(自動販売のオン・オフに関わらず設定できる)
 function sellItem(T, item, keep = 0, M, limit = Infinity) {
   const n = Math.min(Math.floor(T.items[item] - keep), Math.floor(limit));
   if (n <= 0 || item === 'coin') return 0;
@@ -325,6 +326,7 @@ const REVEALS = [
   { id: 'fuku',   msg: '🔭 「福」と「お祭り(転生)」が開放された',     test: G => G.meta.goal.total > 0 || G.meta.resets > 0 || G.meta.fuku > 0 },
   { id: 'homare', msg: '🔭 「世代交代」が開放された: 次の頂へ',        test: G => G.meta.homare > 0 || G.meta.goal.clears >= RESET2_MIN_CLEARS },
   { id: 'tribute', msg: '🔭 研究・施設に「他の地方の特産品」が必要になった。輸送を使いこなそう', test: G => openTowns(G).length >= TRIBUTE.towns },
+  { id: 'timetoken', msg: '🔭 「タイムトークン」が貯まった: 貯めた時間で、ゲームを加速できる', test: G => G.meta.bank >= 60 },
   { id: 'goal2',  msg: '🔭 新たな目標が見えた: 天下一もち大祭',  test: G => G.meta.homare > 0 || G.meta.goal2.total > 0 },
 ];
 function checkReveal(G, silent) {
@@ -534,6 +536,7 @@ function mergeTown(T, o) {
   for (const k in T.gup) T.gup[k] = o.gup?.[k] ?? 0;
   const validRes = new Set(RESEARCH_OF[T.id].map(r => r.id)); for (const k in o.res) if (validRes.has(k)) T.res[k] = true;
   const validQ = new Set(QUESTS_OF[T.id].map(q => q.id)); for (const k in o.quests) if (validQ.has(k)) T.quests[k] = o.quests[k];
+  Object.assign(T.keep, o.keep);
   Object.assign(T.autosell, o.autosell);              // 既定値の上に保存値(null=ユーザーがオフにした)を重ねる
   for (const k in o.off) if (OFFICIAL_BY_ID[k]) T.off[k] = true;
   for (const k in T.auto) Object.assign(T.auto[k], o.auto?.[k]);
@@ -574,7 +577,7 @@ function normalize(o) {
   delete meta.rel; delete meta.ach.a_friend;                                                // 廃止した項目
   meta.goal = Object.assign({ clears: 0, best: 0, total: 0 }, o.meta?.goal); meta.goal.total = Math.max(meta.goal.total, meta.goal.clears);
   meta.goal2 = Object.assign({ clears: 0, best: 0, total: 0 }, o.meta?.goal2); meta.goal2.total = Math.max(meta.goal2.total, meta.goal2.clears);
-  meta.seen = Object.assign({}, o.meta?.seen); meta.mon = Object.assign({}, o.meta?.mon);
+  meta.seen = Object.assign({}, o.meta?.seen); meta.mon = Object.assign({}, o.meta?.mon); meta.bank = Math.max(0, Math.min(TIMETOKEN.max, +o.meta?.bank || 0));
   G.meta = meta; if (o.ev) G.ev = { act: (o.ev.act || []).filter(a => EVENT_BY_ID[a.id]), next: o.ev.next ?? 300 };
   if ((o.v | 0) >= 3) {
     for (const id of TOWN_IDS) mergeTown(G.t[id], o.t?.[id]);
@@ -593,10 +596,13 @@ function load() {
   } catch (e) { return null; }
 }
 function applyOffline(G) {
-  const cap = Math.max(...openTowns(G).map(T => mods(T).off)), away = Math.min((Date.now() - G.savedAt) / 1000, cap);
+  const cap = Math.max(...openTowns(G).map(T => mods(T).off)), raw = Math.max(0, (Date.now() - G.savedAt) / 1000), away = Math.min(raw, cap);
   if (away < 5) return 0;
   advance(G, away, SIM.offlineStep);
   G.stats.offlineSec += away;
+  // タイムトークン: 上限を超えた分と、上限以内の分の一部を「貯めた時間」にする
+  const gain = Math.min(TIMETOKEN.max - G.meta.bank, Math.max(0, raw - cap) + away * TIMETOKEN.share);
+  if (gain >= 1) { G.meta.bank += gain; notify(`⏳ タイムトークンが ${Math.floor(gain / TIMETOKEN.unit)} 個(${Math.floor(gain / 60)}分ぶん)貯まりました`); }
   return away;
 }
 const exportSave = G => btoa(unescape(encodeURIComponent(JSON.stringify(G))));
