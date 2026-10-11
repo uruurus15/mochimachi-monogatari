@@ -379,7 +379,7 @@ const ACHIEVEMENTS = [];
 }
 
 
-const VERSION = '0.1.0';   // 公開版のバージョン
+const VERSION = '0.1.1';   // 公開版のバージョン
 const SIM = {
   step: 0.1,            // 固定ステップ(秒)
   baseOfflineSec: 8 * 3600,
@@ -388,5 +388,5 @@ const SIM = {
   baseCap: 500,         // 1品目あたりの基本保管上限(自動販売が有効な品目は上限なし)
   checkInterval: 0.25,  // クエスト・実績・自動化の判定間隔(ゲーム内秒)
   eventMin: 240, eventMax: 420,
-  saveKey: 'mochi-town-idle.save.v1',   // 旧名のまま(変えると保存済みのセーブが読めなくなるため)
+  saveKey: 'mochimachi.save',
 };

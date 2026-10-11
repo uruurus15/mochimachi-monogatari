@@ -5,4 +5,4 @@
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const root = path.join(__dirname, '..');
 const code = ['src/data.js', 'src/sim.js', 'tests/body.js'].map(f => fs.readFileSync(path.join(root, f), 'utf8')).join('\n');
-vm.runInNewContext(code, { console, Date, Math, process, localStorage: {}, btoa: () => '', unescape, escape }, { filename: 'mochi-town-idle-tests' });
+vm.runInNewContext(code, { console, Date, Math, process, localStorage: {}, btoa: () => '', unescape, escape }, { filename: 'mochimachi-tests' });

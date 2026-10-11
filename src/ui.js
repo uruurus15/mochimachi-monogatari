@@ -31,8 +31,8 @@ const HIST = {};   // 需給の履歴(画面用・保存しない): HIST[街][�
 const HIST_N = 100, HIST_DT = 6;   // 100点 × ゲーム内6秒ごと
 let histT = -1, histPrev = {};
 const UI = { town: ROOT_TOWN, tab: 'items', qty: 1, view: 'town', muted: false, dn: true };
-try { const t = localStorage.getItem('mochi-town-idle.ui'); if (t) Object.assign(UI, JSON.parse(t)); } catch (e) { /* ignore */ }
-const saveUI = () => { try { localStorage.setItem('mochi-town-idle.ui', JSON.stringify({ town: UI.town, tab: UI.tab, qty: UI.qty, view: UI.view, muted: UI.muted, dn: UI.dn })); } catch (e) { /* ignore */ } };
+try { const t = localStorage.getItem('mochimachi.ui'); if (t) Object.assign(UI, JSON.parse(t)); } catch (e) { /* ignore */ }
+const saveUI = () => { try { localStorage.setItem('mochimachi.ui', JSON.stringify({ town: UI.town, tab: UI.tab, qty: UI.qty, view: UI.view, muted: UI.muted, dn: UI.dn })); } catch (e) { /* ignore */ } };
 FX.setMuted(!!UI.muted);
 
 // 画面が指す街・タブ・購入数を、いまのセーブで有効な値に直す(旧セーブの設定が残っていても壊れない)
