@@ -362,5 +362,15 @@ check(r2[2].earned > rt[0].earned * 1.5, `2周目(8h)が1周目(8h)の1.5倍に�
   const N = normalize(JSON.parse(JSON.stringify(Object.assign(newState(), {})))); N.t.home.keep.rice = 7; check(normalize(JSON.parse(JSON.stringify(N))).t.home.keep.rice === 7, '残す数が保存されない');
   console.log('\n--- タイムトークンと手元に残す数 --- OK');
 }
+// 19) 加工すると必ず値が上がる: どの工房も、出来た物の値段が材料の合計より 10% 以上高い(基準の値段でも、その街の買い取り倍率を入れても)
+{
+  for (const id in BUILDINGS) {
+    const bd = BUILDINGS[id], dm = TOWNS[bd.town].demand || {}; let ib = 0, ob = 0, it = 0, ot = 0;
+    for (const k in bd.recipe.in) { ib += ITEMS[k].price * bd.recipe.in[k]; it += ITEMS[k].price * bd.recipe.in[k] * (dm[k] || 1); }
+    for (const k in bd.recipe.out) { ob += ITEMS[k].price * bd.recipe.out[k]; ot += ITEMS[k].price * bd.recipe.out[k] * (dm[k] || 1); }
+    if (ib > 0) { check(ob >= ib * 1.1, `${bd.name}: 基準の値段で、材料の合計より10%以上高くない (${ob} vs ${ib})`); check(ot >= it * 1.1, `${bd.name}: ${TOWNS[bd.town].name}の買い取り倍率を入れると、材料の合計より10%以上高くない (${ot.toFixed(1)} vs ${it.toFixed(1)})`); }
+  }
+  console.log('\n--- 加工の値上がり(10%以上) --- OK');
+}
 console.log(fail.length ? '\n失敗:\n - ' + fail.join('\n - ') : '\nすべてのチェックに合格');
 if (fail.length) process.exitCode = 1;

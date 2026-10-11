@@ -100,7 +100,7 @@ const TOWNS = {
   daito: {
     name: '大都', emoji: '🏯', parent: 'kirigamine', road: { cost: 3e6 }, unit: 0.2, start: { coin: 240 }, cur: { emoji: '🏵️', name: '小判' },
     desc: '栄える城下の大都(霧ヶ峰の先)。金鉱と金箔が名産で、贅沢な品を最も高く買ってくれる。',
-    demand: { sweets: 2.8, sake: 2.8, bento: 2.6, tools: 2.6, cloth: 2.6, pickle: 2.4, tile: 2.4, dried: 2.4, dashi: 2.6, tonic: 2.4 },
+    demand: { sweets: 2.8, sake: 2.8, bento: 2.6, tools: 2.6, cloth: 2.6, pickle: 2.4, tile: 2.4, dried: 2.4, dashi: 2.6, tonic: 2.4, gilded: 1.5 },   // gilded: 金箔菓子は、材料(金箔+高く買われる茶菓子)より必ず高く売れるように
     rec: { down: { sweets: { keep: 10, max: 200 }, iron: { keep: 10, max: 100 }, charcoal: { keep: 10, max: 100 } }, up: { gilded: { keep: 0, max: 100 }, goldleaf: { keep: 5, max: 60 } }, hold: { goldleaf: 15 } },
     theme: { accent: '#ffd54f', accent2: '#fff1b8', bg1: '#2e1212', bg2: '#4a1c16', card: '#52221a', glow: 'rgba(255,213,79,.5)' },
     pos: { x: 1130, y: 375 },
@@ -379,7 +379,7 @@ const ACHIEVEMENTS = [];
 }
 
 
-const VERSION = '0.1.5';   // 公開版のバージョン
+const VERSION = '0.1.6';   // 公開版のバージョン
 // ---------- タイムトークン: オフラインで貯めた時間を、あとで加速に使う ----------
 // 離れていた時間のうち、オフライン上限を超えた分はすべて、上限以内の分も share の割合で「貯めた時間」になる(max まで)。
 // 貯めた時間は、×2 / ×5 / ×10 の加速で使う(加速で増えた分だけ減る)。1トークン = unit 秒。
