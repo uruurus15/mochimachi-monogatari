@@ -246,7 +246,7 @@
     const mkLayer = (alpha = true) => { const c = document.createElement('canvas'); c.width = PW; c.height = PH; const x = c.getContext('2d', { alpha }); x.textAlign = 'center'; x.textBaseline = 'middle'; return { c, x }; };
     const LS = mkLayer(false), LD = mkLayer(false), LL = mkLayer(), LO = mkLayer(), LV = mkLayer();   // LS=静的 LD=静的+動く絵(1枚に合成) LL=灯り LO=周辺の暗がり+木札 LV=暗がりの元
     { const x = LV.x, vg = x.createRadialGradient(PW / 2, PH / 2, PH * 0.45, PW / 2, PH / 2, PW * 0.62); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(10,6,20,.22)'); x.fillStyle = vg; x.fillRect(0, 0, PW, PH); }   // 周辺を少し暗くして奥行きを出す
-    let sigS = '', sLights = [], dLights = [], lastD = -1e9, lightsDirty = true;
+    let sigS = '', sigL = '', sLights = [], dLights = [], lastD = -1e9, lightsDirty = true;
 
     function renderStatic(T) {
       use(LS.x); ART.lights.length = 0; g.clearRect(0, 0, PW, PH);
@@ -264,7 +264,10 @@
       }
       q0.sort((a, b) => a.y - b.y).forEach(q2 => q2.fn());
       sLights = ART.lights.slice();
-      // 木札(いちばん手前)
+      lightsDirty = true;
+    }
+    // 木札(いちばん手前)。数や停止の表示が変わったときだけ描き直す
+    function renderLabels(T) {
       use(LO.x); g.clearRect(0, 0, PW, PH); g.drawImage(LV.c, 0, 0);
       for (const id of ids) {
         const z = ZONES[id], b = T.b[id], open = isUnlocked(id, T), narrow = zw(id) === 3;
@@ -272,7 +275,6 @@
         plaque(lines, (z.x + zw(id) / 2) * CELL, (z.y + zh(id) - 0.38) * CELL - (lines.length - 1) * 7, open);
       }
       plaque([`${TOWNS[tid].emoji} ${TOWNS[tid].name}`], AVE_CX, 12, true);
-      lightsDirty = true;
     }
 
     function renderDynamic(T, t, now, G) {
@@ -316,9 +318,13 @@
 
     function draw(now, stt) {
       const T = stt.t[tid], t = now / 1000, G = stt;
-      const sig = ids.map(id => { const b = T.b[id]; return b.count + (b.stalled ? 's' : '') + (isUnlocked(id, T) ? 'u' : 'l'); }).join(',');
-      if (sig !== sigS) { renderStatic(T); sigS = sig; lastD = -1e9; }
-      if (now - lastD >= 95 || now - lastPop < 700) { renderDynamic(T, t, now, G); lastD = now; }
+      // 地面は、開拓の進み方(台数の対数)や見える棟数が変わったときだけ描き直す。木札は数・停止の表示が変わったときだけ
+      const gsig = ids.map(id => { const b = T.b[id]; return Math.round(dev(b.count) * 24) + '/' + visibleCount(b.count, maxVis(id)) + (isUnlocked(id, T) ? 'u' : 'l'); }).join(',');
+      const lsig = ids.map(id => { const b = T.b[id]; return b.count + (b.stalled ? 's' : '') + (isUnlocked(id, T) ? 'u' : 'l'); }).join(',');
+      if (gsig !== sigS) { renderStatic(T); renderLabels(T); sigS = gsig; sigL = lsig; lastD = -1e9; }
+      else if (lsig !== sigL) { renderLabels(T); sigL = lsig; }
+      const cf = PERF.cfg();
+      if (now - lastD >= cf.d || now - lastPop < 700) { renderDynamic(T, t, now, G); lastD = now; }
       if (lightsDirty) renderLights();
       use(main); g.textAlign = 'center'; g.textBaseline = 'middle';
       g.drawImage(LD.c, 0, 0);
@@ -343,7 +349,7 @@
       });
       // 住民: 道を行き来する。噴水は避けて歩く
       const total = ids.reduce((s, id) => s + T.b[id].count, 0), houses = Math.min(MAX_HOUSES, houseSlots.length, Math.floor(2 + Math.sqrt(total) * 3));
-      const walkers = Math.min(14, 2 + Math.floor(houses / 3)), looks = [{ body: '#d9534f', hat: 'kasa' }, { body: '#4a6fa5', hat: 'none' }, { body: '#e0a63a', hat: 'cap', hatC: '#f2c94c' }, { body: '#6aa66a', hat: 'kasa' }, { body: '#9a6ac0', hat: 'none', hair: '#4a3a2a' }];
+      const walkers = cf.people ? Math.min(14, 2 + Math.floor(houses / 3)) : 0, looks = [{ body: '#d9534f', hat: 'kasa' }, { body: '#4a6fa5', hat: 'none' }, { body: '#e0a63a', hat: 'cap', hatC: '#f2c94c' }, { body: '#6aa66a', hat: 'kasa' }, { body: '#9a6ac0', hat: 'none', hair: '#4a3a2a' }];
       for (let i = 0; i < walkers; i++) {
         const sp = 0.04 + (i % 4) * 0.012, u = (t * sp + i * 0.37) % 2, f = u < 1 ? u : 2 - u, look = looks[i % 5];
         if (i % 3 === 2) { const y = f * (H * CELL - 20) + 10, rd = ROADS[(i >> 1) % ROADS.length], rx = rd.x * CELL + 8 + (i % rd.w) * 24; ART.person(avoidX(rx, y, 'walk'), y, t, i, look); }
@@ -366,13 +372,13 @@
   const maps = {};
   const getMap = tid => maps[tid] || (maps[tid] = makeMap(tid));
   window.__town = { get map() { return getMap(UI.town); }, maps };   // 検証用(ゲームの動作には使わない)
-  let lastDraw = 0;
+  let lastDraw = 0; PERF.watch(cv);
   (function loop(now) {
-    if (now - lastDraw > 45 && typeof UI !== 'undefined' && UI.view === 'town' && typeof state !== 'undefined') {
+    if (now - lastDraw > PERF.cfg().gap - 4 && typeof UI !== 'undefined' && UI.view === 'town' && typeof state !== 'undefined' && PERF.visible(cv)) {
       try {
         const m = getMap(UI.town);
         if (cv.width !== m.W * CELL || cv.height !== H * CELL) { cv.width = m.W * CELL; cv.height = H * CELL; }   // 街が変わったらキャンバスの大きさを合わせる(描画状態はリセットされる)
-        m.draw(now, state);
+        const t0 = performance.now(); m.draw(now, state); PERF.note(performance.now() - t0, now);
       } catch (e) { console.error('town draw failed', e); }
       lastDraw = now;
     }

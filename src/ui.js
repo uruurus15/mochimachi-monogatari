@@ -30,10 +30,10 @@ const FRESH = {};   // 新しく開放されたタブ(点滅させる。保存�
 const HIST = {};   // 需給の履歴(画面用・保存しない): HIST[街][品目] = { stock:[], sup:[], dem:[], sold:[] }
 const HIST_N = 100, HIST_DT = 6;   // 100点 × ゲーム内6秒ごと
 let histT = -1, histPrev = {};
-const UI = { town: ROOT_TOWN, tab: 'items', qty: 1, view: 'town', muted: false, dn: true };
+const UI = { town: ROOT_TOWN, tab: 'items', qty: 1, view: 'town', muted: false, dn: true, lite: false };
 try { const t = localStorage.getItem('mochimachi.ui'); if (t) Object.assign(UI, JSON.parse(t)); } catch (e) { /* ignore */ }
-const saveUI = () => { try { localStorage.setItem('mochimachi.ui', JSON.stringify({ town: UI.town, tab: UI.tab, qty: UI.qty, view: UI.view, muted: UI.muted, dn: UI.dn })); } catch (e) { /* ignore */ } };
-FX.setMuted(!!UI.muted);
+const saveUI = () => { try { localStorage.setItem('mochimachi.ui', JSON.stringify({ town: UI.town, tab: UI.tab, qty: UI.qty, view: UI.view, muted: UI.muted, dn: UI.dn, lite: UI.lite })); } catch (e) { /* ignore */ } };
+FX.setMuted(!!UI.muted); if (typeof PERF !== 'undefined') PERF.setLite(UI.lite);
 
 // 画面が指す街・タブ・購入数を、いまのセーブで有効な値に直す(旧セーブの設定が残っていても壊れない)
 const TABS = [
@@ -62,6 +62,7 @@ const curT = () => state.t[UI.town];
 // ---- 差分更新ヘルパー ----
 function setHTML(el, html) { if (el._h !== html) { el.innerHTML = html; el._h = html; } }
 function setText(el, txt) { if (el && el.textContent !== txt) el.textContent = txt; }
+function setTitle(el, s) { if (el && el.title !== s) el.title = s; }
 function setDisabled(el, v) { if (el && el.disabled !== v) el.disabled = v; }
 function setWidth(el, p) { if (el) { const w = Math.max(0, Math.min(100, p)).toFixed(1) + '%'; if (el.style.width !== w) el.style.width = w; } }
 function toggle(el, cls, on) { if (el && el.classList.contains(cls) !== on) el.classList.toggle(cls, on); }
@@ -182,7 +183,7 @@ function renderShop(st, T, M) {
     // 強化・建設の効果: 押すとどれだけ増えるかを、割合と毎秒の量で見せる
     const rt = b.count ? ratePerSec(k, T, M) * r.out[out0] : 0, lv = b.level, upRatio = (1 + UPGRADE_EFFECT * (lv + 1)) / (1 + UPGRADE_EFFECT * lv) - 1, bdRatio = b.count ? ((b.count + 1) * milestoneMult(b.count + 1)) / (b.count * milestoneMult(b.count)) - 1 : 0;
     setText(ub, `強化  ${money(T, uc)}${b.count ? `  +${(upRatio * 100).toFixed(upRatio < 0.1 ? 1 : 0)}%` : ''}`); setDisabled(ub, !b.count || T.items.coin < uc);
-    ub.title = b.count ? `強化 Lv${lv} → Lv${lv + 1}: この建物の速度 ×${(1 + UPGRADE_EFFECT * lv).toFixed(2)} → ×${(1 + UPGRADE_EFFECT * (lv + 1)).toFixed(2)}(+${(upRatio * 100).toFixed(1)}%)。${ITEMS[out0].name}が毎秒 +${fmtRate(rt * upRatio)} 増えます。強化は1レベルごとに基本の+${UPGRADE_EFFECT * 100}%ずつ足され、レベルが高いほど伸びは小さくなります。` : '建てると強化できます';
+    setTitle(ub, b.count ? `強化 Lv${lv} → Lv${lv + 1}: この建物の速度 ×${(1 + UPGRADE_EFFECT * lv).toFixed(2)} → ×${(1 + UPGRADE_EFFECT * (lv + 1)).toFixed(2)}(+${(upRatio * 100).toFixed(1)}%)。${ITEMS[out0].name}が毎秒 +${fmtRate(rt * upRatio)} 増えます。強化は1レベルごとに基本の+${UPGRADE_EFFECT * 100}%ずつ足され、レベルが高いほど伸びは小さくなります。` : '建てると強化できます');
     setText(q(card, '[data-f=gain]'), b.count ? `強化 +${(upRatio * 100).toFixed(1)}%(毎秒 +${fmtRate(rt * upRatio)})  ·  あと1棟 +${(bdRatio * 100).toFixed(1)}%(毎秒 +${fmtRate(rt * bdRatio)})` : '');
     if (ab) toggle(ab, 'off', b.noAuto);
   });
@@ -516,7 +517,7 @@ function render() {
   const st = state, T = curT(), M = mods(T);
   renderHUD(st, T, M); renderTowns(st); renderShop(st, T, M); renderTabs(st, T); detectMilestones(st);
   const t = $('#town'), w = $('#world'); toggle(t, 'hide', UI.view !== 'town'); toggle(w, 'hide', UI.view !== 'world');
-  document.querySelectorAll('#viewbar button[data-id]').forEach(b => toggle(b, 'on', b.dataset.id === UI.view)); toggle($('#dnbtn'), 'on', UI.dn !== false); toggle(document.querySelector('#viewbar [data-id=world]'), 'vhide', !st.meta.seen.towns);
+  document.querySelectorAll('#viewbar button[data-id]').forEach(b => toggle(b, 'on', b.dataset.id === UI.view)); toggle($('#dnbtn'), 'on', UI.dn !== false); toggle($('#litebtn'), 'on', !!UI.lite); toggle(document.querySelector('#viewbar [data-id=world]'), 'vhide', !st.meta.seen.towns);
   setText($('#viewhint'), UI.view === 'world' ? `発見した街 ${TOWN_IDS.filter(id => st.t[id].open).length}/${TOWN_IDS.length} · 街をクリックで切り替え` : '');
   document.querySelectorAll('[data-panel]').forEach(p => toggle(p, 'show', p.dataset.panel === UI.tab));
   switch (UI.tab) {
@@ -557,6 +558,7 @@ document.addEventListener('click', e => {
   else if (act === 'qty') { UI.qty = id === 'max' ? 'max' : +id; saveUI(); }
   else if (act === 'goal') { if (buildStage(st, id)) { FX.burstAt(t, { n: 30, colors: ['#ffd54f', '#ffffff'] }); save(st); } else FX.sfx('no'); }
   else if (act === 'endclose') { $('#ending').classList.add('hide'); }
+  else if (act === 'lite') { UI.lite = !UI.lite; PERF.setLite(UI.lite); saveUI(); }
   else if (act === 'daynight') { UI.dn = UI.dn === false; saveUI(); }
   else if (act === 'mute') { UI.muted = !UI.muted; FX.setMuted(UI.muted); saveUI(); }
   else if (act === 'road') { if (buyRoad(st, id)) { FX.sfx('road'); FX.burstAt(t, { n: 24, colors: [TOWNS[id].theme.accent, '#ffffff'] }); } else FX.sfx('no'); }

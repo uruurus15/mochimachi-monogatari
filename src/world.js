@@ -178,9 +178,9 @@
   const cur0 = P => TOWNS[P.id].cur.emoji;
 
   window.__world = { carts };   // 検証用(ゲームの動作には使わない)
-  let lastDraw = 0;
+  let lastDraw = 0; PERF.watch(cv);
   (function loop(now) {
-    if (now - lastDraw > 33 && typeof UI !== 'undefined' && UI.view === 'world' && typeof state !== 'undefined') { try { draw(now); } catch (e) { console.error('world draw failed', e); } lastDraw = now; }
+    if (now - lastDraw > PERF.cfg().gap - 4 && typeof UI !== 'undefined' && UI.view === 'world' && typeof state !== 'undefined' && PERF.visible(cv)) { try { const t0 = performance.now(); draw(now); PERF.note(performance.now() - t0, now); } catch (e) { console.error('world draw failed', e); } lastDraw = now; }
     requestAnimationFrame(loop);
   })(performance.now());
 })();
