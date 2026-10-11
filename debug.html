@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>もち町ものがたり [DEBUG]</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="debug.css">
+</head>
+<body>
+<canvas id="fx" aria-hidden="true"></canvas>
+<div id="banner" aria-live="polite"></div>
+<header id="hud">
+  <div class="brand"><span class="logo">🍡</span><b>もち町ものがたり</b> <small class="ver">v0.1.0</small> <span class="tag">DEBUG</span></div>
+  <div id="coinbox" class="coinbox"><span id="coinicon" class="coinicon"></span><span id="coin" class="coinnum"></span><small id="income" class="income"></small></div>
+  <div class="hud-right"><span id="fuku" class="chip fuku"></span><button id="mute" class="icon" data-act="mute" title="効果音">🔊</button></div>
+</header>
+<nav id="towns" aria-label="街"></nav>
+<div id="events"></div>
+<div id="toast"></div>
+<div id="ending" class="hide" data-act="endclose"><div class="endcard"><div class="ek" id="endIcon">🎆 🏯 🎆</div><h1 id="endHead">万国もち博覧会、開幕!</h1><p id="endText"></p><button class="btn" data-act="endclose">見て回る</button></div></div>
+<section id="hero">
+  <div id="viewbar"><button data-act="view" data-id="town">🏘 町のようす</button><button data-act="view" data-id="world">🗺 世界地図</button><button id="dnbtn" data-act="daynight" title="昼夜の切り替え">🌙 昼夜</button><span id="rank" class="chip"></span><span id="viewhint"></span></div>
+  <div class="canvaswrap"><canvas id="town" width="1440" height="480" aria-label="ミニチュアの町"></canvas><canvas id="world" width="1440" height="480" aria-label="世界地図"></canvas></div>
+</section>
+<main>
+  <section id="shop">
+    <div class="sechead"><h2 id="shoptitle">施設</h2><div class="seg" id="qty"><button data-act="qty" data-id="1">×1</button><button data-act="qty" data-id="10">×10</button><button data-act="qty" data-id="max">最大</button></div></div>
+    <div id="buildings"></div>
+  </section>
+  <aside id="side">
+    <nav id="tabs"></nav>
+    <div class="panel" data-panel="goal"><h2>🎯 最終目標 <small id="goalCount"></small></h2><div id="goalInfo"></div><div id="goalStages"></div><div id="goal2Wrap"><h2>🌸 天下一もち大祭</h2><div id="goalInfo2"></div><div id="goalStages2"></div></div></div>
+    <div class="panel" data-panel="items"><div id="items"></div><button data-act="sellall" class="wide">全部売る(手元に残す数を無視)</button></div>
+    <div class="panel" data-panel="analysis"><div id="analysis"></div></div>
+    <div class="panel" data-panel="office"><div id="office"></div></div>
+    <div class="panel" data-panel="research"><div id="research"></div></div>
+    <div class="panel" data-panel="facility"><div id="facility"></div></div>
+    <div class="panel" data-panel="quest"><h2>クエスト <small id="qCount"></small></h2><div id="quests"></div></div>
+    <div class="panel" data-panel="ship"><div id="ship"></div></div>
+    <div class="panel" data-panel="ach"><h2>実績 <small id="aCount"></small></h2><p class="note">達成すると全街の全体速度 +1%。転生しても残ります。</p><div id="achs"></div></div>
+    <div class="panel" data-panel="fest"><h2>お祭り(転生)</h2><div id="festInfo"></div><button data-act="prestige" id="prestigeBtn" class="wide"></button><div id="reset2Wrap"><h2>🌸 世代交代</h2><div id="reset2Info"></div><button data-act="reset2" id="reset2Btn" class="wide"></button></div><h2>博覧会の特典</h2><div id="legacy"></div><h2>福のパーク</h2><div id="perks"></div></div>
+    <div class="panel" data-panel="stats"><h2>統計</h2><div id="stats"></div></div>
+  </aside>
+</main>
+<footer>
+  <span id="foot"></span>
+  <span><button data-act="export">エクスポート</button> <button data-act="import">インポート</button> <button data-act="reset">リセット</button></span>
+</footer>
+<script src="src/data.js"></script>
+<!-- デバッグ用セーブ枠: 通常版のセーブを壊さない -->
+<script>SIM.saveKey = 'mochi-town-idle.save.debug';</script>
+<script src="src/sim.js"></script>
+<script src="src/fx.js"></script>
+<script src="src/art.js"></script>
+<script src="src/sprites.js"></script>
+<script src="src/landmarks.js"></script>
+<script src="src/expo.js"></script>
+<script src="src/ui.js"></script>
+<script src="src/town.js"></script>
+<script src="src/world.js"></script>
+<script src="src/debug.js"></script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+.tag{background:#e0475b;color:#fff;font-size:12px;padding:2px 8px;border-radius:10px;vertical-align:middle}
+#dbg{margin:8px 16px;background:#000a;border:1px solid var(--accent);border-radius:10px;padding:8px 12px;font-size:13px;display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center}
+#dbg h3{margin:0;font-size:13px;color:var(--accent)}
+#dbg .grp{display:flex;flex-wrap:wrap;align-items:center;gap:4px}
+#dbg .grp>span{color:var(--sub);margin-right:2px}
+#dbg button{padding:3px 8px;font-size:12px}
+#dbg button.on{outline:2px solid var(--ok)}
+#dbg .info{color:var(--sub);font-variant-numeric:tabular-nums;flex-basis:100%}

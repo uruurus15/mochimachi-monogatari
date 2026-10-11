@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>スプライト・ギャラリー(開発用)</title>
+<style>body{margin:0;background:#2b2433;color:#eee;font:13px system-ui}canvas{display:block;margin:0 auto}h3{text-align:center;margin:6px}</style>
+</head>
+<body>
+<h3>スプライト・ギャラリー(開発用: 絵の確認に使う)</h3>
+<canvas id="c" width="1560" height="1500"></canvas>
+<script src="../src/data.js"></script>
+<script src="../src/art.js"></script>
+<script src="../src/sprites.js"></script>
+<script src="../src/landmarks.js"></script>
+<script>
+const cv = document.getElementById('c'), g = cv.getContext('2d'); ART.use(g);
+const params = new URLSearchParams(location.search), NIGHT = +params.get('night') || 0, ACT = params.get('act') !== '0';
+const ids = Object.keys(BUILDINGS), S = 3;
+function cell(x, y, w, h, label, fn, bg) {
+  g.save(); g.fillStyle = bg || '#5a8a4c'; g.fillRect(x, y, w, h); g.beginPath(); g.rect(x, y, w, h); g.clip();
+  g.translate(x + w / 2, y + h * 0.66); g.scale(S, S); fn(); g.restore();
+  g.fillStyle = '#fff'; g.font = '12px sans-serif'; g.textAlign = 'left'; g.fillText(label, x + 4, y + 13);
+}
+function draw(now) {
+  const t = now / 1000; ART.lights.length = 0;
+  g.fillStyle = '#2b2433'; g.fillRect(0, 0, cv.width, cv.height);
+  const W = 156, H = 140; let i = 0;
+  for (const id of ids) { const x = (i % 10) * W, y = Math.floor(i / 10) * H; cell(x, y, W - 2, H - 2, `${BUILDINGS[id].town}/${id}`, () => SPRITES.spriteOf(id)(t, i * 1.7 + 0.3, ACT, (t * 0.4) % 1), '#6a9a58'); i++; }
+  // 住宅
+  let row = Math.ceil(ids.length / 10) * H;
+  for (let k = 0; k < 10; k++) cell(k * W, row, W - 2, H - 2, `house ${k}`, () => ART.house(t, k, true, null), '#6a9a58');
+  row += H;
+  const th = TOWNS.home.theme;
+  cell(0, row, 312, 220, 'hall', () => { g.save(); g.scale(0.85, 0.85); LAND.hall(t, th, ['merchant', 'builder', 'upgrader', 'scholar', 'treasurer', 'courier', 'surveyor', 'festival']); g.restore(); }, '#6a9a58');
+  cell(314, row, 156, 138, 'post', () => LAND.post(t, 5, true), '#cdbb92');
+  cell(472, row, 156, 138, 'fountain', () => LAND.fountain(t), '#cdbb92');
+  cell(630, row, 156, 138, 'toro', () => LAND.toro(t, 1), '#cdbb92');
+  cell(788, row, 156, 138, 'cart (loaded)', () => LAND.cart(-6, 0, 1, '#f4efd0', t, 1), '#cdbb92');
+  cell(946, row, 156, 138, 'trees', () => { g.save(); g.translate(-14, 0); ART.tree(t, 1, 'broad'); g.restore(); g.save(); g.translate(14, 0); ART.tree(t, 2, 'pine'); g.restore(); }, '#5f9a4f');
+  cell(1104, row, 200, 138, 'people', () => { const o = [{ body: '#d9534f', hat: 'kasa' }, { body: '#4a6fa5', hat: 'eboshi' }, { body: '#4f8a5a', hat: 'cap', hatC: '#f2c94c' }, { body: '#7a5aa0' }]; o.forEach((p, k) => ART.person(-24 + k * 16, 0, t, k, Object.assign({ walk: k % 2 === 0 }, p))); }, '#cdbb92');
+  cell(1306, row, 252, 220, 'castle', () => { g.save(); g.scale(0.6, 0.6); LAND.castle(t); g.restore(); }, '#9a9ca2');
+  if (NIGHT > 0) { g.save(); g.globalCompositeOperation = 'multiply'; g.fillStyle = `rgba(70,85,150,${NIGHT})`; g.fillRect(0, 0, cv.width, cv.height); g.restore(); g.save(); g.globalCompositeOperation = 'lighter'; for (const l of ART.lights) ART.glow(l.x, l.y, l.r, l.c, NIGHT * 0.95); g.restore(); }
+  requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
+</script>
+</body>
+</html>
