@@ -1,9 +1,9 @@
 // 描画の軽さの管理。町と世界地図の絵が、パソコンに合わせて自動で軽くなる(画面の外・別のタブでは描かない)。
-// レベル: 0=ふつう(30fps・動く絵は10fps) / 1=軽め(20fps・5fps) / 2=軽量(12fps・2.5fps) / 3=最軽量(8fps・1.5fps・住民なし)
+// レベル: 0=ふつう(30fps・建物の動きは6コマ/秒) / 1=軽め(15fps・4コマ/秒) / 2=軽量(10fps・2.5コマ/秒) / 3=最軽量(7fps・1.5コマ/秒・住民なし)
 // 最初はレベル1。描画に使った時間が 1秒の 12% を超えた状態が続くと、1段ずつ軽くする。「⚡軽量」ボタンはレベル2に固定する。
 'use strict';
 const PERF = (function () {
-  const LV = [{ gap: 33, d: 100, people: true }, { gap: 50, d: 200, people: true }, { gap: 83, d: 400, people: true }, { gap: 125, d: 650, people: false }];
+  const LV = [{ gap: 33, d: 100, people: true }, { gap: 66, d: 200, people: true }, { gap: 100, d: 400, people: true }, { gap: 150, d: 650, people: false }];
   let level = 1, lite = false, busy = 0, since = 0, lastChange = 0;
   const seen = new Map();                                      // canvas → 画面に見えているか
   const io = typeof IntersectionObserver !== 'undefined' ? new IntersectionObserver(es => es.forEach(e => seen.set(e.target, e.isIntersecting))) : null;

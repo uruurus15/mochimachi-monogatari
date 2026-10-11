@@ -277,6 +277,36 @@
       plaque([`${TOWNS[tid].emoji} ${TOWNS[tid].name}`], AVE_CX, 12, true);
     }
 
+    // ---------- 絵のキャッシュ ----------
+    // 建物・住宅の絵は、アニメーションの各コマ(16コマ)を一度だけ小さなキャンバスに描いて使い回す。毎回ベクターで描き直さない。
+    // 夜の灯りの位置も絵ごとに覚えておく。街を切り替えたとき・軽さのレベルが変わったときは捨てる。
+    const NF = 16, FPSL = [6, 4, 2.5, 1.5], BW = 72, BH = 84, OX = 36, OY = 64, bmp = new Map();
+    let lvSeen = -1, lastF = -1;
+    function bitmap(key, tt, fn) {
+      let b = bmp.get(key); if (b) return b;
+      const c = document.createElement('canvas'); c.width = BW; c.height = BH; const x = c.getContext('2d');
+      const prev = g, n0 = ART.lights.length; use(x); x.translate(OX, OY); fn(tt); x.setTransform(1, 0, 0, 1, 0, 0);
+      const ls = ART.lights.splice(n0).map(l => ({ x: l.x - OX, y: l.y - OY, r: l.r, c: l.c })); use(prev);
+      b = { c, ls }; bmp.set(key, b); return b;
+    }
+    function blit(b, px, py, p, alpha) {
+      if (alpha !== 1) g.globalAlpha = alpha;
+      if (p === 1) g.drawImage(b.c, px - OX, py - OY); else { g.save(); g.translate(px, py); g.scale(p, p); g.drawImage(b.c, -OX, -OY); g.restore(); }
+      if (alpha !== 1) g.globalAlpha = 1;
+      for (const l of b.ls) ART.lights.push({ x: px + l.x * p, y: py + l.y * p, r: l.r * p, c: l.c });
+    }
+    // 荷車と住民も、動きの8コマ(車輪・足)をキャッシュして、位置だけ変えて貼る
+    const MW = 56, MH = 46, MOX = 24, MOY = 30, NM = 8;
+    function mini(key, fn) {
+      let b = bmp.get(key); if (b) return b;
+      const c = document.createElement('canvas'); c.width = MW; c.height = MH; const x = c.getContext('2d');
+      const prev = g; use(x); x.translate(MOX, MOY); fn(); x.setTransform(1, 0, 0, 1, 0, 0); use(prev);
+      b = { c }; bmp.set(key, b); return b;
+    }
+    const cartAt = (px, py, dir, col, t, ri) => { const ph = Math.floor(((t * 6 + ri) % 6.2832) / 6.2832 * NM) % NM; g.drawImage(mini(`C|${dir}|${col || '-'}|${ph}`, () => LAND.cart(0, 0, dir, col, ph / NM * 6.2832 / 6, 0)).c, Math.round(px - MOX), Math.round(py - MOY)); };
+    const personAt = (px, py, t, i, look) => { const ph = Math.floor((((t * 8 + i) % 6.2832) / 6.2832) * NM) % NM; g.drawImage(mini(`P|${i % 5}|${ph}`, () => ART.person(0, 0, ph / NM * 6.2832 / 8, 0, look)).c, Math.round(px - MOX), Math.round(py - MOY)); };
+    const usesProg = id => id === 'paddy' || id === 'grove' || (BUILDINGS[id].spr && (BUILDINGS[id].spr.k === 'plot' || BUILDINGS[id].spr.k === 'mine'));
+
     function renderDynamic(T, t, now, G) {
       use(LD.x); ART.lights.length = 0; g.clearRect(0, 0, PW, PH); g.drawImage(LS.c, 0, 0);
       const total = ids.reduce((s, id) => s + T.b[id].count, 0), houses = Math.min(MAX_HOUSES, houseSlots.length, Math.floor(2 + Math.sqrt(total) * 3));
@@ -294,7 +324,10 @@
       if (M.lantern != null) { const lx = (ROADS[M.lantern].x + ROADS[M.lantern].w / 2) * CELL; add(ROAD_CY + 4, () => { g.save(); g.translate(lx, ROAD_CY + 8); LAND.toro(t, 5); g.restore(); }); }
       // 住宅
       track('house', houses, now);
-      for (let k = 0; k < houses; k++) { const s = houseSlots[k], p = pop('house' + k, now); add(s.py + 10, () => { g.save(); g.translate(s.px, s.py); g.scale(p, p); ART.house(t, k, s.up, st); g.restore(); }); }
+      for (let k = 0; k < houses; k++) {
+        const s = houseSlots[k], p = pop('house' + k, now), fi = Math.floor(t * FPSL[PERF.level]) % NF, fh = (k * 7 + 3) % 5 === 1 ? fi : 0;     // 動くのは煙突のある家だけ
+        add(s.py + 10, () => blit(bitmap(`H${k}|${s.up ? 1 : 0}|${fh}|${PERF.level}`, fh / FPSL[PERF.level], tt => ART.house(tt, k, s.up, st)), s.px, s.py, p, 1));
+      }
       // 施設
       for (const id of ids) {
         const b = T.b[id]; if (!isUnlocked(id, T) || !b.count) continue;
@@ -302,7 +335,8 @@
         const act = !b.stalled, prog = Math.min(1, b.progress % 1 || (b.progress >= 1 ? 1 : 0));
         for (let k = 0; k < shown; k++) {
           const s = slots[id][k], p = pop(id + k, now), drop = (1 - Math.min(1, p)) * -14;
-          add(s.py + 13, () => { g.save(); g.translate(s.px, s.py + drop); g.scale(p, p); g.globalAlpha = act ? 1 : 0.6; spr(t, k * 1.7 + 0.3, act, prog); g.restore(); });
+          const fps = FPSL[PERF.level], fi = Math.floor(t * fps) % NF, sk = k % 2, pq = usesProg(id) ? Math.round(prog * 4) / 4 : 0;
+          add(s.py + 13, () => blit(bitmap(`${id}|${act ? 1 : 0}|${sk}|${pq}|${fi}|${PERF.level}`, fi / fps, tt => spr(tt, sk * 1.7 + 0.3, act, pq, {})), s.px, s.py + drop, p, act ? 1 : 0.6));
         }
       }
       queue.sort((a, b) => a.y - b.y).forEach(q2 => q2.fn());
@@ -324,7 +358,9 @@
       if (gsig !== sigS) { renderStatic(T); renderLabels(T); sigS = gsig; sigL = lsig; lastD = -1e9; }
       else if (lsig !== sigL) { renderLabels(T); sigL = lsig; }
       const cf = PERF.cfg();
-      if (now - lastD >= cf.d || now - lastPop < 700) { renderDynamic(T, t, now, G); lastD = now; }
+      if (PERF.level !== lvSeen) { bmp.clear(); lvSeen = PERF.level; lastD = -1e9; }
+      const fidx = Math.floor(t * FPSL[PERF.level]);
+      if (fidx !== lastF || lastD < 0 || now - lastPop < 700) { renderDynamic(T, t, now, G); lastD = now; lastF = fidx; }
       if (lightsDirty) renderLights();
       use(main); g.textAlign = 'center'; g.textBaseline = 'middle';
       g.drawImage(LD.c, 0, 0);
@@ -345,15 +381,15 @@
         if (s < DW) p = { ...pathAt(r.out, 0), dx: 0 }; else if (s < DW + r.lo) p = pathAt(r.out, s - DW); else if (s < 2 * DW + r.lo) p = { ...pathAt(r.out, r.lo), dx: 0 }; else p = pathAt(r.back, s - 2 * DW - r.lo);
         if (Math.abs(p.dx) > 0.01) cs.face = p.dx > 0 ? 1 : -1;
         const loaded = s >= DW * 0.5 && s < DW + r.lo + DW * 0.5, bob = (s < DW || (s >= DW + r.lo && s < 2 * DW + r.lo)) ? Math.abs(Math.sin(t * 6)) * 1.2 : 0;
-        cs.px = p.x; cs.py = avoidY(p.x, p.y, 'cart') - bob; g.globalAlpha = cs.a; LAND.cart(cs.px, cs.py, cs.face, loaded ? (CARGO[r.item] || '#ccc') : null, t, ri); g.globalAlpha = 1;
+        cs.px = p.x; cs.py = avoidY(p.x, p.y, 'cart') - bob; g.globalAlpha = cs.a; cartAt(cs.px, cs.py, cs.face, loaded ? (CARGO[r.item] || '#ccc') : null, t, ri); g.globalAlpha = 1;
       });
       // 住民: 道を行き来する。噴水は避けて歩く
       const total = ids.reduce((s, id) => s + T.b[id].count, 0), houses = Math.min(MAX_HOUSES, houseSlots.length, Math.floor(2 + Math.sqrt(total) * 3));
       const walkers = cf.people ? Math.min(14, 2 + Math.floor(houses / 3)) : 0, looks = [{ body: '#d9534f', hat: 'kasa' }, { body: '#4a6fa5', hat: 'none' }, { body: '#e0a63a', hat: 'cap', hatC: '#f2c94c' }, { body: '#6aa66a', hat: 'kasa' }, { body: '#9a6ac0', hat: 'none', hair: '#4a3a2a' }];
       for (let i = 0; i < walkers; i++) {
         const sp = 0.04 + (i % 4) * 0.012, u = (t * sp + i * 0.37) % 2, f = u < 1 ? u : 2 - u, look = looks[i % 5];
-        if (i % 3 === 2) { const y = f * (H * CELL - 20) + 10, rd = ROADS[(i >> 1) % ROADS.length], rx = rd.x * CELL + 8 + (i % rd.w) * 24; ART.person(avoidX(rx, y, 'walk'), y, t, i, look); }
-        else { const x = f * (W * CELL - 20) + 10; ART.person(x, avoidY(x, ROAD_Y * CELL + 6 + (i % 2) * 20, 'walk'), t, i, look); }
+        if (i % 3 === 2) { const y = f * (H * CELL - 20) + 10, rd = ROADS[(i >> 1) % ROADS.length], rx = rd.x * CELL + 8 + (i % rd.w) * 24; personAt(avoidX(rx, y, 'walk'), y, t, i, look); }
+        else { const x = f * (W * CELL - 20) + 10; personAt(x, avoidY(x, ROAD_Y * CELL + 6 + (i % 2) * 20, 'walk'), t, i, look); }
       }
       // 昼夜: 夜は青く暗くなり、窓・炉・街灯が光る
       const nightOn = typeof UI === 'undefined' || UI.dn !== false;
@@ -366,17 +402,17 @@
       }
       first = false;
     }
-    return { W, draw, ROUTES, carts, OBST, ZONES, avoidX, avoidY };
+    return { W, draw, release: () => bmp.clear(), ROUTES, carts, OBST, ZONES, avoidX, avoidY };
   }
 
   const maps = {};
   const getMap = tid => maps[tid] || (maps[tid] = makeMap(tid));
   window.__town = { get map() { return getMap(UI.town); }, maps };   // 検証用(ゲームの動作には使わない)
-  let lastDraw = 0; PERF.watch(cv);
+  let lastDraw = 0, lastMap = null; PERF.watch(cv);
   (function loop(now) {
     if (now - lastDraw > PERF.cfg().gap - 4 && typeof UI !== 'undefined' && UI.view === 'town' && typeof state !== 'undefined' && PERF.visible(cv)) {
       try {
-        const m = getMap(UI.town);
+        const m = getMap(UI.town); if (lastMap && lastMap !== m) lastMap.release(); lastMap = m;
         if (cv.width !== m.W * CELL || cv.height !== H * CELL) { cv.width = m.W * CELL; cv.height = H * CELL; }   // 街が変わったらキャンバスの大きさを合わせる(描画状態はリセットされる)
         const t0 = performance.now(); m.draw(now, state); PERF.note(performance.now() - t0, now);
       } catch (e) { console.error('town draw failed', e); }

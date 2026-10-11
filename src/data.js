@@ -379,7 +379,7 @@ const ACHIEVEMENTS = [];
 }
 
 
-const VERSION = '0.1.3';   // 公開版のバージョン
+const VERSION = '0.1.4';   // 公開版のバージョン
 const SIM = {
   step: 0.1,            // 固定ステップ(秒)
   baseOfflineSec: 8 * 3600,
