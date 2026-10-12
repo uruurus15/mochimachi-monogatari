@@ -459,7 +459,7 @@ function autoTown(G, T, M) {
     }
   }
   if (hasOff(T, 'builder') && A.build.on) {
-    let budget = T.items.coin * (1 - A.build.reserve) * saving, yardBought = false;
+    let budget = T.items.coin * (1 - A.build.reserve) * saving, yardsBought = 0;
     for (let i = 0; i < 40; i++) {
       let best = null, bp = Infinity, starved = false, lack = Infinity;
       for (const id of ids) {
@@ -468,7 +468,7 @@ function autoTown(G, T, M) {
         const m = buildingMat(id, T, M); if (m > T.items.timber) { starved = true; lack = Math.min(lack, m); continue; }          // 建材が足りない
         const p = (c + m * ITEMS.timber.price) / buildGain(id, T, M); if (p < bp) { bp = p; best = id; }
       }
-      if (!best && starved && !yardBought) { const y = yardOf(T.id); if (y && !T.b[y].noAuto && isUnlocked(y, T) && buildingCost(y, T, M) <= budget && ratePerSec(y, T, M) * 40 < lack) { best = y; yardBought = true; } }   // 40秒ぶんの生産でも届かないときだけ   // 建材が足りないときは、資材場を増やす
+      if (!best && starved && yardsBought < 4) { const y = yardOf(T.id); if (y && !T.b[y].noAuto && isUnlocked(y, T) && buildingCost(y, T, M) <= budget && (lack - T.items.timber) > ratePerSec(y, T, M) * 6) { best = y; yardsBought++; } }   // 足りない分が6秒の生産では届かないときに増やす(1回の判定で最大4つ)   // 建材が足りないときは、資材場を増やす
       if (!best) break;
       const c = buildingCost(best, T, M), m = buildingMat(best, T, M); T.items.coin -= c; T.items.timber -= m; fl(T, 'timber').b += m; T.b[best].count++; budget -= c;
     }

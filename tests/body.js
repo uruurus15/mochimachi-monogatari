@@ -372,5 +372,13 @@ check(r2[2].earned > rt[0].earned * 1.5, `2周目(8h)が1周目(8h)の1.5倍に�
   }
   console.log('\n--- 加工の値上がり(10%以上) --- OK');
 }
+// 20) 自動建築は、建材が足りないとき資材場を増やし続ける(1つ建ったあと増えなくならない)
+{
+  const G = newState(), T = G.t.home; G.ev.next = 1e9; T.off.builder = true; T.auto.build.on = true; T.stats.produced.rice = 100;
+  T.b.paddy.count = 40; T.items.coin = 1e7; T.items.timber = 0; T.b[yardOf('home')].count = 1;
+  advance(G, 120, 0.25); check(T.b[yardOf('home')].count >= 4, `建材が足りないのに資材場が増えない: ${T.b[yardOf('home')].count}`);
+  const n1 = T.b[yardOf('home')].count; T.items.timber = capOf(T) * 0.5; T.items.coin = 1e3; advance(G, 5, 0.25); check(T.b[yardOf('home')].count <= n1 + 1, '建材が足りているのに資材場を増やしている');
+  console.log('\n--- 資材場の自動増設 --- OK');
+}
 console.log(fail.length ? '\n失敗:\n - ' + fail.join('\n - ') : '\nすべてのチェックに合格');
 if (fail.length) process.exitCode = 1;
